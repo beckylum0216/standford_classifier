@@ -102,3 +102,15 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# stanford dataset
+car_ims/
+
+# tensorflow saves
+savedmodels/
+
+# pareto files
+pareto/
+
+# YOLO
+YOLO/
