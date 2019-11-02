@@ -42,26 +42,26 @@ class ImageDetector(object):
 
         return roi
 
-    def GetPicture(self, path="blah"):
-        print(path)
-        image = cv2.imread(path)
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        blur = cv2.GaussianBlur(gray, (5,5), sigmaX=0)
-        threshhold, threshholdImg = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        print(threshhold)
-        cv2.imshow('Thresh', threshholdImg)
-        # cv2.waitKey(0)
-
-        kernel = np.ones((3, 3), np.uint8)
-        morph = cv2.morphologyEx(threshholdImg, cv2.MORPH_OPEN, kernel, iterations=2)
-
-        gabor_filter = cv2.getGaborKernel((25, 25), 2.0, np.pi / 8, 20.0, 0.5, 0, ktype=cv2.CV_32F)
-        gaborImg = cv2.filter2D(morph, cv2.CV_8UC3, gabor_filter)
-
-        cv2.imshow('Gabor', gaborImg)
-
-        canny = cv2.Canny(gaborImg, 100, 300)
-        cv2.imshow('Canny', canny)
+    def GetPicture(self, srcpath, dstpath, filename):
+        # print(path)
+        image = cv2.imread(srcpath)
+        # gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        # blur = cv2.GaussianBlur(gray, (5,5), sigmaX=0)
+        # threshhold, threshholdImg = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # print(threshhold)
+        # cv2.imshow('Thresh', threshholdImg)
+        # # cv2.waitKey(0)
+        #
+        # kernel = np.ones((3, 3), np.uint8)
+        # morph = cv2.morphologyEx(threshholdImg, cv2.MORPH_OPEN, kernel, iterations=2)
+        #
+        # gabor_filter = cv2.getGaborKernel((25, 25), 2.0, np.pi / 8, 20.0, 0.5, 0, ktype=cv2.CV_32F)
+        # gaborImg = cv2.filter2D(morph, cv2.CV_8UC3, gabor_filter)
+        #
+        # cv2.imshow('Gabor', gaborImg)
+        #
+        # canny = cv2.Canny(gaborImg, 100, 300)
+        # cv2.imshow('Canny', canny)
         # cv2.waitKey(0)
 
 
@@ -71,24 +71,39 @@ class ImageDetector(object):
         # cv2.imwrite(gaborPath, gaborImg)
 
         #this section is just for checking if the bounded box has been correctly placed - not needed anymore
-        boundedcar = self.DetectVehicles(canny, 5, 5)
-        for (x, y, w, h) in boundedcar:
-            selected = cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            print("x: ", x, " y: ", y, " w: ", w, " h: ", h)
+        # boundedcar = self.DetectVehicles(canny, 5, 5)
+        # for (x, y, w, h) in boundedcar:
+        #     selected = cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        #     print("x: ", x, " y: ", y, " w: ", w, " h: ", h)
 
-
-        root, dir, sub, sub1 = path.split('/')
-        directory, id = str(sub1).split('\\')
+        # print(srcpath)
+        root, path = srcpath.split('/')
+        directory, id = str(path).split('\\')
         rows = self.bbox[id]
 
         for data in rows:
             print("ground truth x:", data['ngx1'], " y: ", data['ngy1'], " w: ", data['ngx2'], " h:", data['ngy2'])
-            selected = cv2.rectangle(image,(int(data['x1']), int(data['y1'])), (int(data['x2']), int(data['y2'])), (0, 255, 255), 2)
+            selected = cv2.rectangle(image, (int(data['x1']), int(data['y1'])), (int(data['x2']), int(data['y2'])),
+                                     (0, 255, 255), 2)
+
+
+            croppedImg = image[int(data['y1']):int(data['y2']), int(data['x1']):int(data['x2'])]
+            gray = cv2.cvtColor(croppedImg, cv2.COLOR_BGR2GRAY)
+            width, height = gray.shape
+            ratio = 100 / float(width)
+            h = int(height * ratio)
+            w = 100
+            aspect = cv2.resize(gray, (w, h), interpolation=cv2.INTER_AREA)
+            imgfile = cv2.resize(aspect, (100, 100), interpolation=cv2.INTER_AREA)
+            normalised = cv2.equalizeHist(imgfile)
+            # cv2.imshow("gray", gray)
+            outputpath = os.path.join(dstpath, filename)
+            cv2.imwrite(outputpath, normalised)
 
         # the window showing output image with corners
-        cv2.imshow('Image with Borders', image)
-        cv2.resizeWindow('image with borders', 100, 100)
-        cv2.waitKey(0)
+        # cv2.imshow('Image with Borders', image)
+        # cv2.resizeWindow('image with borders', 100, 100)
+        # cv2.waitKey(0)
 
 
     def SubtractBackground(self, path ="path", outPath ="path"):
@@ -96,7 +111,7 @@ class ImageDetector(object):
         for root, dir, file in fileList:
             for ii in file:
                 filePath = os.path.join(path, ii)
-                self.GetPicture(filePath)
+                self.GetPicture(filePath, outPath, ii)
 
     def GetStanfordBBox(self, imgSize, annotationpath="annotationPath"):
         with open(annotationpath, newline='\n') as csvfile:
@@ -133,11 +148,11 @@ class ImageDetector(object):
             wr = csv.writer(labelfile, quoting=csv.QUOTE_ALL)
             for key in self.bbox.keys():
                 for rows in self.bbox[key]:
-                    wr.writerow([self.bbox[key][rows]['path'], self.bbox[key][rows]['class'],
-                                 self.bbox[key][rows]['x1'],self.bbox[key][rows]['y1'],
-                                 self.bbox[key][rows]['x2'], self.bbox[key][rows]['y2'],
-                                 self.bbox[key][rows]['ngx1'], self.bbox[key][rows]['ngy1'],
-                                 self.bbox[key][rows]['ngx2'], self.bbox[key][rows]['ngy2']])
+                    wr.writerow([rows['path'], rows['class'],
+                                 rows['x1'], rows['y1'],
+                                 rows['x2'], rows['y2'],
+                                 rows['ngx1'], rows['ngy1'],
+                                 rows['ngx2'], rows['ngy2']])
         labelfile.close()
 
         return self.bbox
@@ -223,3 +238,19 @@ class ImageDetector(object):
                 line.append(data)
                 self.bbox[fileName] = line
         #print(self.bbox)
+
+    def GetGroundTruth(self, srcpath, dstpath):
+        filelist = os.walk(srcpath)
+        for root, dir, file in filelist:
+            for ii in file:
+                filepath = os.path.join(root, ii)
+                image = cv2.imread(filepath)
+
+                rows = self.bbox[id]
+
+                for data in rows:
+                    print("ground truth x:", data['ngx1'], " y: ", data['ngy1'], " w: ", data['ngx2'], " h:",
+                          data['ngy2'])
+                    selected = cv2.rectangle(image, (int(data['x1']), int(data['y1'])),
+                                             (int(data['x2']), int(data['y2'])), (0, 255, 255), 2)
+

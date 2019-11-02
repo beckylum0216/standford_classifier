@@ -1,12 +1,17 @@
+import csv
 import math
 import sys
 
 import cv2
 import numpy as np
+import time
 
 MAXSIZE = sys.maxsize
 
 class NearestNeighbour(object):
+
+    def __init__(self):
+        self.acclist = []
 
     def EuclideanDistance(self, trainImg, testImg, size):
         distance = 0
@@ -29,9 +34,9 @@ class NearestNeighbour(object):
 
         return result
 
-    def KNearestNeighbour(self, trainlist, trainSet, testLbl, testImg, k = 0):
-        if trainSet is None:
-            trainSet = [[]]
+    def KNearestNeighbour(self, trainLbl, trainImg, testImg, k = 0):
+        if trainImg is None:
+            trainImg = [[]]
 
         # if type(testImg) is None:
         #     testImg = []
@@ -43,9 +48,9 @@ class NearestNeighbour(object):
         else:
             size = len(testImg)
             count = 0
-            for ii in trainSet:
+            for ii in trainImg:
                 l2distance = self.EuclideanDistance(testImg, ii,size)
-                distances[trainlist[count]] = l2distance
+                distances[trainLbl[count]] = l2distance
                 count += 1
             #should return a list of sorted keys
             sorteddist = sorted(distances, key=distances.get, reverse=True)
@@ -62,7 +67,7 @@ class NearestNeighbour(object):
 
         return neighbours
 
-    def KNNPrediction(self,  neighbours):
+    def KNNPrediction(self, neighbours):
         votes = {-1:-1}
         for ii in range(len(neighbours)):
             response = neighbours[ii]
@@ -78,24 +83,41 @@ class NearestNeighbour(object):
 
     def KNNEvaluation(self, resultlabels, predictions):
         correct = 0
-        for ii in resultlabels:
-            if ii == predictions[ii]:
-                correct += 1
-        return (correct / resultlabels.shape) * 100.00
-
-    def RunKNN(self, testLbl, testSet, trainLbl, trainSet, k):
-        predictions = {}
         count = 0
-        for ii in testSet:
+        for ii in resultlabels:
+            if ii == predictions[count]:
+                correct += 1
+            count += 1
+        return (correct / len(resultlabels)) * 100.00
+
+    def RunKNN(self, testLbl, testImg, trainLbl, trainImg, k):
+        predictions = []
+        count = 0
+        for ii in testImg:
             #print("testimg:" , ii)
-            neighbours = self.KNearestNeighbour(trainLbl, trainSet, testLbl[count], ii, k)
+            neighbours = self.KNearestNeighbour(trainLbl, trainImg, ii, k)
             result = self.KNNPrediction(neighbours)
-            predictions[count] = result
+            predictions.append(result)
             count += 1
             print("test img: ", count, " result: ", result)
 
         accuracy = self.KNNEvaluation(testLbl, predictions)
         print("Accuracy: ", accuracy, "%")
+        self.acclist.append(accuracy)
+
+    def KNNPredict(self, targetImg, trainLbl, trainImg, k):
+        neighbours = self.KNearestNeighbour(trainLbl, trainImg, targetImg, k)
+        result = self.KNNPrediction(neighbours)
+        print("Result:", result)
+
+
+    def SaveResultKNN(self, savepath, k):
+        timestr = time.strftime("%Y%m%d-%H%M%S")
+        filepath = savepath + "/KNN_Results_Log_" + str(k) + "_" + str(timestr) + ".log"
+        with open(filepath, 'w+', newline='') as savefile:
+            wr = csv.writer(savefile)
+            wr.writerow(self.acclist)
+        savefile.close()
 
 
 

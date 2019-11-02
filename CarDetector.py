@@ -1,17 +1,15 @@
 
 import os
 import cv2
-import argparse
+from PIL import Image
 import numpy as np
+import Utility as ut
 
 class CarDetector(object):
 
     argWeight = "./YOLO/yolov3.weights"
     argConfig = "./YOLO/yolov3.cfg"
     argClass = "./YOLO/yolov3.txt"
-
-    def get_files(self, path="filepath"):
-        print("blah")
 
     def get_output_layers(self, net):
 
@@ -37,7 +35,7 @@ class CarDetector(object):
         COLORS = None
         maxsize = 256
         minsize = 0
-        filelist = os.walk(srcpath);
+        filelist = os.walk(srcpath)
         for root, dir, file in filelist:
             for ii in file:
                 filepath = os.path.join(root, ii)
@@ -107,7 +105,6 @@ class CarDetector(object):
                     x2 = round(w) + x1
                     y2 = round(h) + y1
 
-
                     if x1 < 0 or x1 == None:
                         x1 = minsize
 
@@ -124,16 +121,21 @@ class CarDetector(object):
 
 
                     croppedImg = image[y1:y2, x1:x2]
-                    #cv2.imshow("cropped img", croppedImg)
-                    normalised = cv2.resize(croppedImg, (100, 100))
-                    gray = cv2.cvtColor(normalised, cv2.COLOR_BGR2GRAY)
+                    gray = cv2.cvtColor(croppedImg, cv2.COLOR_BGR2GRAY)
+                    width, height = gray.shape
+                    ratio = 100 / float(width)
+                    h = int(height * ratio)
+                    w = 100
+                    aspect = cv2.resize(gray, (w,h), interpolation=cv2.INTER_AREA)
+                    imgfile = cv2.resize(aspect, (100, 100), interpolation=cv2.INTER_AREA)
+                    normalised = cv2.equalizeHist(imgfile)
                     #cv2.imshow("gray", gray)
                     outputpath = os.path.join(dstpath, ii)
-                    cv2.imwrite(outputpath, gray)
+                    cv2.imwrite(outputpath, normalised)
 
-                cv2.waitKey()
+                #cv2.waitKey()
 
-                cv2.destroyAllWindows()
+                #cv2.destroyAllWindows()
 
 # # handle command line arguments
 # arguments = argparse.ArgumentParser()
