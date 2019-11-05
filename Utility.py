@@ -1,14 +1,14 @@
 import csv
-
 import math
 import os
 import random
-
+import time
 import cv2
-from PIL import Image
-from PictureHeader import PictureHeader
 import numpy as np
 import ast
+
+from PIL import Image
+from PictureHeader import PictureHeader
 
 
 class Utility:
@@ -97,7 +97,6 @@ class Utility:
                 classes = int(key)
 
             if value >= 90:
-
                 if lowest > value:
                     lowest = value
 
@@ -181,11 +180,10 @@ class Utility:
                 filelist = []
                 labelfile.seek(0)
                 for row in csvreader:
-
                     if int(row['class']) == ii:
                         filelist = ast.literal_eval(row['filelist'])
-                        # print(histo[ii])
-                        # print(filelist)
+
+                        # print(row['class'])
 
                 if filelist:
                     pareto[ii] = filelist
@@ -197,7 +195,9 @@ class Utility:
         lblList = []
         originalList = []
         size =self.GetSize(dirpath, filelist)
+        print(size)
         augmentsize = len(augment)
+        print(augmentsize)
         ndImgList= np.empty((size * augmentsize, 100, 100, 1))
         ndLblList = np.empty((size * augmentsize, classes))
         count = 0
@@ -225,16 +225,21 @@ class Utility:
                         elif aa == " Vertical":
                             vertical = self.FlipVertical(imgfile)
                             normalised = vertical / 255
+                        elif aa == "Canny":
+                            canny = self.ApplyCannyFilter(imgfile)
+                            normalised = canny /255
 
                         temp = np.array(normalised)[:, :, np.newaxis]
                         #temp.flatten()
                         # print(temp)
                         #data = np.expand_dims(temp, axis=2)
                         ndImgList[count] = temp
-                        imgList.append(imgfile)
+                        imgList.append(normalised)
 
                         ndLblList[count] = self.OneShotEncoder(classes, key, map)
                         index = 0
+
+                        # print("map: ", map, "key: ", key)
                         for ii in map:
                             if ii == key:
                                 # print("ii: ", ii," key: ", key, " index: ", index)
@@ -244,7 +249,7 @@ class Utility:
 
         return imgList, lblList, ndImgList, ndLblList, originalList, count
 
-    def OpenFile(self, imgpath, classes, key, map):
+    def OpenFile(self, imgpath, classes, key, map, augment):
         imgList = []
         lblList = []
         originalList = []
@@ -254,26 +259,42 @@ class Utility:
         count = 0
 
         exists = os.path.exists(imgpath)
-        if exists:
-            imgfile = cv2.imread(imgpath, cv2.IMREAD_GRAYSCALE)
-            originalList.append(imgfile)
-            gaborimg = self.ApplyGaborFilter(imgfile)
-            # ret, thresh = cv2.threshold(imgfile, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            normalised = gaborimg / 255
-            temp = np.array(normalised)[:, :, np.newaxis]
-            # temp.flatten()
-            # print(temp)
-            # data = np.expand_dims(temp, axis=2)
-            ndImgList[count] = temp
-            imgList.append(imgfile)
-            lbl = int(key)
-            ndLblList[count] = self.OneShotEncoder(classes, lbl, map)
-            index = 0
-            for ii in map:
-                if ii == key:
-                    lblList.append(index)
-                index += 1
-            count += 1
+        for aa in augment:
+            if exists:
+                imgfile = cv2.imread(imgpath, cv2.IMREAD_GRAYSCALE)
+                originalList.append(imgfile)
+                if aa == "Normalised":
+                    normalised = imgfile / 255
+                elif aa == "Gabor":
+                    gaborimg = self.ApplyGaborFilter(imgfile)
+                    # ret, thresh = cv2.threshold(imgfile, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                    normalised = gaborimg / 255
+                elif aa == "Fourier":
+                    fourier = self.ApplyFourier(imgfile)
+                    normalised = fourier / 255
+                elif aa == "Horizontal":
+                    horizontal = self.FlipHorizontal(imgfile)
+                    normalised = horizontal / 255
+                elif aa == " Vertical":
+                    vertical = self.FlipVertical(imgfile)
+                    normalised = vertical / 255
+                elif aa == "Canny":
+                    canny = self.ApplyCannyFilter(imgfile)
+                    normalised = canny / 255
+                temp = np.array(normalised)[:, :, np.newaxis]
+                # temp.flatten()
+                # print(temp)
+                # data = np.expand_dims(temp, axis=2)
+                ndImgList[count] = temp
+                imgList.append(imgfile)
+                lbl = int(key)
+                ndLblList[count] = self.OneShotEncoder(classes, lbl, map)
+                index = 0
+                for ii in map:
+                    if ii == key:
+                        lblList.append(index)
+                    index += 1
+                count += 1
 
         return imgList, lblList, ndImgList, ndLblList, originalList, count
 
@@ -544,3 +565,17 @@ class Utility:
         # cv2.destroyAllWindows()
 
         return vertical
+
+    def ApplyCannyFilter(self, targetImg):
+        canny = cv2.Canny(targetImg, 100,150)
+        # cv2.imshow("canny", canny)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
+        return canny
+
+    def TimedPath(self, parentpath, filename, filetype):
+        timestr = time.strftime("%Y%m%d-%H%M%S")
+        filepath = filename + "_" + str(timestr) + filetype
+        path = os.path.join(parentpath, filepath)
+        return path

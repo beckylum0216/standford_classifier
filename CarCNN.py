@@ -8,6 +8,7 @@ import sklearn
 import matplotlib.pyplot as plt
 import seaborn
 import Utility
+import time
 
 class NeuralNet(object):
 
@@ -31,10 +32,10 @@ class NeuralNet(object):
         self.numHiddenNode2 = 1024
         self.numHiddenNode3 = 512
         self.numHiddenNode4 = 256
-        self.numHiddenNode5 = 256
-        self.numHiddenNode6 = 196
+        self.numHiddenNode5 = 128
+        self.numHiddenNode6 = 128
 
-        self.learnRate = 0.0001
+        self.learnRate = 0.00001
         self.dropoutRate = 0.5
         self.ops = {}
         self.annopath = "car_labels/names.txt"
@@ -208,7 +209,7 @@ class NeuralNet(object):
         classnames = list(range(self.classes))
         sn = seaborn.heatmap(confusiontrain, annot=True, annot_kws={"size": 8}, cbar=False)
         plt.show()
-        pltpath = "plots/confusion.png"
+        pltpath = ut.TimedPath("plots", "confusion", ".png")
         sn.figure.savefig(pltpath)
 
         cr = sklearn.metrics.classification_report(labely, predy, labels=classnames)
@@ -217,7 +218,7 @@ class NeuralNet(object):
         histo = ut.PredictionHisto(predy, self.classes)
 
         plt.hist(histo, self.classes)
-        histopath = "plots/histo.png"
+        histopath = ut.TimedPath("plots", "histo", ".png")
         plt.savefig(histopath)
 
 
@@ -241,27 +242,27 @@ class NeuralNet(object):
         convolutionOne = tf.compat.v1.layers.conv2d(inputs=x_inputs, kernel_size=2, filters=2, strides=2,
                                                     padding="VALID")
         c1shape = convolutionOne.get_shape().as_list()
-        #print("convolution 1 shape", c1shape)
+        # print("convolution 1 shape", c1shape)
 
         poolOne = tf.compat.v1.layers.max_pooling2d(convolutionOne, 2, strides=2, padding="VALID")
         p1shape = poolOne.get_shape()
         p1size = p1shape[1:4].num_elements()
-        #print("pool1 shape", p1size)
+        # print("pool1 shape", p1size)
 
         convolutionTwo = tf.compat.v1.layers.conv2d(inputs=poolOne, kernel_size=2, filters=2, strides=2,
                                                     padding="VALID")
         c2shape = tf.compat.v1.shape(convolutionTwo)
-        #print("convolution2 shape", c2shape)
+        # print("convolution2 shape", c2shape)
 
         poolTwo = tf.compat.v1.layers.max_pooling2d(convolutionTwo, 2, strides=2, padding="VALID")
 
         p2shape = poolTwo.get_shape()
         p2size = p2shape[1:4].num_elements()
-        #print("pool2 shape", p2size)
+        # print("pool2 shape", p2size)
 
         data = tf.compat.v1.reshape(poolOne, [-1, 1250])
         datashape = data.get_shape().as_list()
-        #print("data shape", datashape)
+        # print("data shape", datashape)
 
         # weights
         weightOne = tf.compat.v1.Variable(tf.compat.v1.random_normal([1250,
@@ -295,6 +296,7 @@ class NeuralNet(object):
 
         # forward propagation
         predictionOne = tf.compat.v1.add(tf.compat.v1.matmul(data, weightOne), biasOne, name='predictionOne')
+
         predictionTwo = tf.compat.v1.add(tf.compat.v1.matmul(predictionOne, weightTwo), biasTwo, name='predictionTwo')
         predictionThree = tf.compat.v1.add(tf.compat.v1.matmul(predictionTwo, weightThree), biasThree,
                                            name='predictionThree')
@@ -305,6 +307,8 @@ class NeuralNet(object):
         predictionSix = tf.compat.v1.add(tf.compat.v1.matmul(predictionFive, weightSix), biasSix, name='predictionSix')
         predOut = tf.compat.v1.add(tf.compat.v1.matmul(predictionFive, weightOut), biasOut, name='predOut')
         prediction = tf.compat.v1.nn.softmax(predOut, name='prediction')
+
+        # dropoutOne = tf.compat.v1.nn.dropout(predictionOne, keep_prob=self.dropoutRate)
 
         # backpropagation
         theLogits = tf.compat.v1.nn.softmax_cross_entropy_with_logits(logits=predOut, labels=y_label, name='theLogits')
@@ -329,52 +333,50 @@ class NeuralNet(object):
         saver.restore(sess, path)
         testbatch = self.BatchGenerator(batchsize, popsize, targetImgs, targetLbls)
 
-        count = 0
         predy = []
         labely = []
-        ut = Utility.Utility()
+        testbatch = self.BatchGenerator(batchsize, self.populationtest, targetImgs, targetLbls)
+        index = 0
         for (x_test, y_test) in testbatch:
 
             # actual testing
             check = sess.run(prediction, feed_dict={x_inputs: x_test, y_label: y_test})
             check_label = sess.run(y_label, feed_dict={y_label: y_test})
 
-            # checktest = sess.run(prediction, feed_dict={x_inputs: x_test, y_label: y_test}).argmax()
-            # check_label_test = sess.run(y_label, feed_dict={y_label: y_test}).argmax()
-            # print("pred test: ", checktest, " label test: ", check_label_test)
-
+            # checktrain = sess.run(prediction, feed_dict={x_inputs: x_test, y_label: y_test}).argmax()
+            # check_label_train = sess.run(y_label, feed_dict={y_label: y_test}).argmax()
+            # print("predy: ", checktrain, " labely: ", check_label_train)
 
             for ii in range(len(y_test)):
                 predy.append(check[ii].argmax())
                 labely.append(check_label[ii].argmax())
-                count += 1
-
-        for ii in range(count):
-            print("predy list: ", predy[ii], " labely list: ", labely[ii])
-            # ut.ShowResult(origin[ii], self.annopath, predy[ii], map)
+                index += 1
 
         x_test = targetImgs
         y_test = targetLbls
-
+        ut = Utility.Utility()
         lossy = sess.run(loss, feed_dict={x_inputs: x_test, y_label: y_test})
         accy = sess.run(accuracy, feed_dict={x_inputs: x_test, y_label: y_test})
         print('Accuracy = ' + str(accy) + ' Loss = ' + str(lossy))
 
+        for ii in range(index):
+            print("predy: ", predy[ii], " labely: ", labely[ii])
+            # ut.ShowResult(origin[ii], self.annopath, predy[ii], map)
 
         confusiontrain = sklearn.metrics.confusion_matrix(labely, predy)
         classnames = list(range(self.classes))
-        sn = seaborn.heatmap(confusiontrain, annot=True, annot_kws={"size": 3}, cbar=False)
+        sn = seaborn.heatmap(confusiontrain, annot=True, annot_kws={"size": 8}, cbar=False)
         plt.show()
-        pltpath = "plots/confusion.png"
+        pltpath = ut.TimedPath("plots", "confusion", ".png")
         sn.figure.savefig(pltpath)
 
         cr = sklearn.metrics.classification_report(labely, predy, labels=classnames)
         print(cr)
 
-
         histo = ut.PredictionHisto(predy, self.classes)
-        plt.hist(histo, classnames)
-        histopath = "plots/histo.png"
+
+        plt.hist(histo, self.classes)
+        histopath = ut.TimedPath("plots", "histo", ".png")
         plt.savefig(histopath)
 
 

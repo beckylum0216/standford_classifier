@@ -40,16 +40,18 @@ class NearestNeighbour(object):
 
         # if type(testImg) is None:
         #     testImg = []
-
+        # print(trainLbl)
         distances = {}
         neighbours = []
         if testImg is None:
             print("Motor Vehicle not detected!!!")
         else:
+            #imgsize
             size = len(testImg)
             count = 0
             for ii in trainImg:
-                l2distance = self.EuclideanDistance(testImg, ii,size)
+                l2distance = self.EuclideanDistance(testImg, ii, size)
+                # print("train label: ", trainLbl[count])
                 distances[trainLbl[count]] = l2distance
                 count += 1
             #should return a list of sorted keys
@@ -91,6 +93,7 @@ class NearestNeighbour(object):
         return (correct / len(resultlabels)) * 100.00
 
     def RunKNN(self, testLbl, testImg, trainLbl, trainImg, k):
+        # print(trainLbl)
         predictions = []
         count = 0
         for ii in testImg:
@@ -98,8 +101,8 @@ class NearestNeighbour(object):
             neighbours = self.KNearestNeighbour(trainLbl, trainImg, ii, k)
             result = self.KNNPrediction(neighbours)
             predictions.append(result)
+            print("test img: ", count, " test label: ", testLbl[count]," result: ", result)
             count += 1
-            print("test img: ", count, " result: ", result)
 
         accuracy = self.KNNEvaluation(testLbl, predictions)
         print("Accuracy: ", accuracy, "%")
