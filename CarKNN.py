@@ -6,12 +6,15 @@ import cv2
 import numpy as np
 import time
 
+from Utility import Utility
+
 MAXSIZE = sys.maxsize
 
 class NearestNeighbour(object):
 
     def __init__(self):
         self.acclist = []
+        self.annopath = "car_labels/names.txt"
 
     def EuclideanDistance(self, trainImg, testImg, size):
         distance = 0
@@ -108,10 +111,12 @@ class NearestNeighbour(object):
         print("Accuracy: ", accuracy, "%")
         self.acclist.append(accuracy)
 
-    def KNNPredict(self, targetImg, trainLbl, trainImg, k):
+    def KNNPredict(self, targetLbl, targetImg, trainLbl, trainImg, origin, k, map):
         neighbours = self.KNearestNeighbour(trainLbl, trainImg, targetImg, k)
         result = self.KNNPrediction(neighbours)
         print("Result:", result)
+        ut = Utility()
+        ut.ShowResult(origin[0], self.annopath, result, map)
 
 
     def SaveResultKNN(self, savepath, k):

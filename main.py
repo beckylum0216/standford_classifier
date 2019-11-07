@@ -33,11 +33,13 @@ def run(argv):
     images = "./KITTI_Dataset/training/images"
     imgpath = "./car_ims"
     normpath = "normalised"
+    detectpath = "detected"
     annotationpath = "./detectionlabel/normbbox.bbox"
     paretopath = "pareto"
     # savedfile = "savedmodels/stanford"
     # savedfile = "savedmodels/allaugment"
-    savedfile = "savedmodels/basewithflips"
+    # savedfile = "savedmodels/basewithflips"
+    savedfile = "savedmodels/final"
     calibrationsave = "calibrationsave/calibrate"
     resultpath = "results"
     imgTrain = []
@@ -62,7 +64,7 @@ def run(argv):
     #
     # knn.SaveResultKNN(resultpath, ii)
 
-    classes, lowest, totclasses, histo, map = ut.StatCheck(annotationpath, 200)
+    classes, lowest, totclasses, histo, map, popmap = ut.StatCheck(annotationpath, 200)
     # lowest = 25
 
     # print(pareto20)
@@ -85,13 +87,25 @@ def run(argv):
         pareto80 = ut.OpenParetoFile(paretopath, pareto80file, classes)
         knnImgTrain, knnLblTrain, cnnImgTrain, cnnLblTrain, origin, pop80 = ut.OpenFiles(normpath, pareto80, totclasses, augment, map)
         knnImgTest, knnLblTest, cnnImgTest, cnnLblTest, origin, pop20 = ut.OpenFile(argv.target, classes, argv.label, augment, map)
-        knn.KNNPredict(knnImgTest, knnLblTrain, knnImgTrain, 3)
+        knn.KNNPredict( knnLblTest, knnImgTest, knnLblTrain, knnImgTrain, origin,3, map)
     elif argv.NN == "cnn":
         augment = ["Normalised", "Gabor", "Fourier", "Horizontal", "Vertical"]
         pareto80file = "pareto80.par"
-        pareto80 = ut.OpenParetoFile(paretopath, pareto80file, totclasses)
+        pareto80 = ut.OpenParetoFile(paretopath, pareto80file, classes)
         knnImgTrain, knnLblTrain, cnnImgTrain, cnnLblTrain, origin, pop80 = ut.OpenFiles(normpath, pareto80, totclasses, augment, map)
-        knnImgTest, knnLblTest, cnnImgTest, cnnLblTest, origin, pop20 = ut.OpenFile(argv.target, totclasses, argv.label, map)
+        knnImgTest, knnLblTest, cnnImgTest, cnnLblTest, origin, pop20 = ut.OpenFile(argv.target, totclasses, argv.label, augment, map)
+        # print("encoded label", cnnLblTest.argmax())
+        cnn = NeuralNet(100, 100, totclasses, pop80, pop20)
+        cnn.PredictCNN(savedfile, pop20, cnnImgTest, cnnLblTest, origin, 32, map)
+    elif argv.NN == "dnn":
+        augment = ["Normalised", "Gabor", "Fourier", "Horizontal", "Vertical"]
+        pareto80file = "pareto80.par"
+        pareto80 = ut.OpenParetoFile(paretopath, pareto80file, classes)
+        knnImgTrain, knnLblTrain, cnnImgTrain, cnnLblTrain, origin, pop80 = ut.OpenFiles(normpath, pareto80, totclasses,
+                                                                                         augment, map)
+        outputpath = cd.one_dnn(argv.target, detectpath)
+        knnImgTest, knnLblTest, cnnImgTest, cnnLblTest, origin, pop20 = ut.OpenFile(outputpath, totclasses, argv.label,
+                                                                                    augment, map)
         # print("encoded label", cnnLblTest.argmax())
         cnn = NeuralNet(100, 100, totclasses, pop80, pop20)
         cnn.PredictCNN(savedfile, pop20, cnnImgTest, cnnLblTest, origin, 32, map)
@@ -107,7 +121,7 @@ def run(argv):
         cnn = NeuralNet(100, 100, totclasses, pop80, pop20)
         cnn.LoadCNN(savedfile, pop20, cnnImgTest, cnnLblTest, origin, 32, map)
     elif argv.NN == "train":
-        augment = ["Normalised"]
+        augment = ["Normalised", "Gabor", "Canny", "Fourier", "Horizontal", "Vertical"]
         pareto80, pareto20 = ut.Pareto(histo, paretopath, lowest)
         knnImgTrain, knnLblTrain, cnnImgTrain, cnnLblTrain, origin, pop80 = ut.OpenFiles(normpath, pareto80, totclasses, augment, map)
         knnImgTest, knnLblTest, cnnImgTest, cnnLblTest, origin, pop20 = ut.OpenFiles(normpath, pareto20, totclasses, augment, map)
@@ -136,9 +150,9 @@ def run(argv):
 def main():
     parser = argparse.ArgumentParser(description= "CarClassifier")
     if len(sys.argv) < 4:
-        parser.add_argument('--nn', '-n', dest='NN', choices=['random', 'train', 'calibrate', "kmean"], help="choose classification method")
+        parser.add_argument('--nn', '-n', dest='NN', choices=['random', 'train', 'calibrate', 'kmean'], help="choose classification method")
     else:
-        parser.add_argument('--nn', '-n', dest='NN', choices=['knn', 'cnn'], help="choose classification method")
+        parser.add_argument('--nn', '-n', dest='NN', choices=['knn', 'cnn', 'dnn'], help="choose classification method")
         parser.add_argument('target', help="the filepath or file name")
         parser.add_argument('label', help="the target label")
 

@@ -382,6 +382,7 @@ class NeuralNet(object):
 
 
     def PredictCNN(self, path, popsize, targetImgs, targetLbls, origin, batchsize, map):
+        # print("target label", targetLbls)
         tf.compat.v1.reset_default_graph()
         tf.compat.v1.disable_eager_execution()
 
@@ -512,7 +513,7 @@ class NeuralNet(object):
         checkconfidence = np.amax(sess.run(prediction, feed_dict={x_inputs: x_test, y_label: y_test}))
         check_label_test = sess.run(y_label, feed_dict={y_label: y_test}).argmax()
         print("prediction: ", checktest, " label: ", check_label_test," confidence: ", checkconfidence)
-        ut.ShowResult(origin[0], self.annopath, check_label_test, map)
+        ut.ShowResult(origin[0], self.annopath, checktest, map)
 
 
 

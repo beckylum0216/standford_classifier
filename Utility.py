@@ -64,6 +64,7 @@ class Utility:
         histolist = {}
         histofile = {}
         classmap = []
+        popmap = []
 
         csv.register_dialect('bbox', delimiter=',')
         with open(file, newline= '\n') as labelfile:
@@ -93,6 +94,7 @@ class Utility:
 
         for key, value in histo.items():
             #print("class: ", key, " count: ", value)
+            popmap.append(key)
             if int(key) > classes:
                 classes = int(key)
 
@@ -122,7 +124,7 @@ class Utility:
         print(classes)
         print(totclasses)
 
-        return classes, lowest, totclasses, histofile, classmap
+        return classes, lowest, totclasses, histofile, classmap, popmap
 
     def Pareto(self, histofile, dstpath, size):
         pareto80 = {}
@@ -188,6 +190,8 @@ class Utility:
                 if filelist:
                     pareto[ii] = filelist
 
+        # print(pareto)
+
         return pareto
 
     def OpenFiles(self, dirpath, filelist, classes, augment, map):
@@ -209,7 +213,7 @@ class Utility:
                     if exists:
                         imgfile = cv2.imread(imgpath, cv2.IMREAD_GRAYSCALE)
                         originalList.append(imgfile)
-                        normalised = imgfile / 255
+                        normalised = imgfile
                         if aa == "Normalised":
                             normalised = imgfile / 255
                         elif aa == "Gabor":
@@ -235,7 +239,7 @@ class Utility:
                         #data = np.expand_dims(temp, axis=2)
                         ndImgList[count] = temp
                         imgList.append(normalised)
-
+                        # print("key", key)
                         ndLblList[count] = self.OneShotEncoder(classes, key, map)
                         index = 0
 
@@ -249,20 +253,22 @@ class Utility:
 
         return imgList, lblList, ndImgList, ndLblList, originalList, count
 
-    def OpenFile(self, imgpath, classes, key, map, augment):
+    def OpenFile(self, imgpath, classes, key, augment, map):
         imgList = []
         lblList = []
         originalList = []
         size = 1
-        ndImgList = np.empty((size, 100, 100, 1))
-        ndLblList = np.empty((size, classes))
+        augmentsize = len(augment)
+        ndImgList = np.empty((size * augmentsize, 100, 100, 1))
+        ndLblList = np.empty((size * augmentsize, classes))
         count = 0
-
         exists = os.path.exists(imgpath)
+
         for aa in augment:
             if exists:
                 imgfile = cv2.imread(imgpath, cv2.IMREAD_GRAYSCALE)
                 originalList.append(imgfile)
+                normalised = imgfile
                 if aa == "Normalised":
                     normalised = imgfile / 255
                 elif aa == "Gabor":
@@ -286,7 +292,7 @@ class Utility:
                 # print(temp)
                 # data = np.expand_dims(temp, axis=2)
                 ndImgList[count] = temp
-                imgList.append(imgfile)
+                imgList.append(normalised)
                 lbl = int(key)
                 ndLblList[count] = self.OneShotEncoder(classes, lbl, map)
                 index = 0
@@ -314,11 +320,12 @@ class Utility:
         count = 0
         encoder = np.zeros((1, classes))
         for ii in map:
-            # print(ii)
+
+            # print("map", ii, " key ", key)
             if key == ii:
+                # print("map", ii)
                 encoder[0, count] = 1
-            else:
-                count += 1
+            count += 1
 
         # print(encoder)
         return encoder
@@ -495,16 +502,16 @@ class Utility:
             for row in wr:
                 lblList.append(row)
 
-            temp = 0
-            for ii in map:
-                if ii == int(prediction):
-                    temp = ii
-                else:
-                    temp += 1
+            # print(map)
+            # print("prediction", prediction)
+            temp = map[prediction]
+            # for ii in map:
+            #     if int(prediction) == int(ii):
+            #         temp = int(ii)
 
             count = 0
             for ii in lblList:
-                if count is int(temp):
+                if count == temp:
                     result = str(ii[0])
                 count += 1
 
@@ -514,7 +521,7 @@ class Utility:
             finalImg = cv2.resize(im, (1080, 1080), interpolation=cv2.INTER_AREA)
             cv2.putText(finalImg, result, (10, 780), font, 3, (0, 0, 255), 2, cv2.LINE_AA)
             cv2.imshow("Result", finalImg)
-            cv2.waitKey(5)
+            cv2.waitKey(0)
             cv2.destroyAllWindows()
 
             return result
